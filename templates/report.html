@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scan #{{ scan.id }} report</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <p><a href="/">&larr; Back</a></p>
+  <h1>Report: {{ scan.target }}</h1>
+  <p>Scan #{{ scan.id }} | mode: {{ scan.mode }} | status: {{ scan.status }} | pages scanned: {{ scan.pages }}</p>
+  {% if scan.mode == "passive" %}
+  <p class="note">Passive scan only. Verify ownership of the site to enable crawling and input tests.</p>
+  {% endif %}
+
+  <p><b>Summary:</b>
+    High {{ counts.get("High", 0) }} |
+    Medium {{ counts.get("Medium", 0) }} |
+    Low {{ counts.get("Low", 0) }} |
+    Info {{ counts.get("Info", 0) }}
+    &nbsp; <a href="/api/scan/{{ scan.id }}/export">Download JSON</a></p>
+
+  {% for f in findings %}
+  <div class="finding {{ f.severity }}">
+    <b>[{{ f.severity }}] {{ f.issue }}</b><br>
+    <small>{{ f.category }} | OWASP {{ f.owasp }} | {{ f.url }}</small><br>
+    Fix: {{ f.fix }}
+  </div>
+  {% else %}
+  <p>No findings.</p>
+  {% endfor %}
+
+  <p class="note">Automated results are heuristic. Verify each finding manually before acting on it.</p>
+</body>
+</html>

@@ -1,0 +1,12 @@
+body { font-family: Arial, sans-serif; max-width: 850px; margin: 30px auto; padding: 0 15px; }
+h1 { margin-bottom: 5px; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #999; padding: 5px 8px; text-align: left; }
+pre { background: #eee; padding: 10px; max-height: 200px; overflow: auto; }
+.box { border: 1px solid #999; padding: 10px; margin-top: 10px; }
+.error { color: #b00020; }
+.note { background: #ffffcc; border: 1px solid #cc9; padding: 8px; }
+.finding { border-left: 5px solid #999; background: #f5f5f5; padding: 8px; margin: 8px 0; }
+.finding.High { border-color: #b00020; }
+.finding.Medium { border-color: #e69500; }
+.finding.Low { border-color: #1a73e8; }

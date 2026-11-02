@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Web Vulnerability Scanner</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <h1>Web Vulnerability Scanner</h1>
+  <p class="note">Only scan sites you own or have written permission to test. Unverified sites get a passive scan only
+     (headers, cookies, TLS). Active tests need ownership verification.</p>
+
+  <h2>1. Target</h2>
+  <input type="text" id="url" placeholder="https://example.com or http://localhost:8080" size="50" onblur="validateUrl()">
+  <button id="checkBtn" onclick="checkTarget()">Check target</button>
+  <div id="urlMsg" class="error"></div>
+
+  <div id="checkResult" class="box" style="display:none"></div>
+
+  <h2>2. Scan</h2>
+  <button id="scanBtn" onclick="startScan()" disabled>Start scan</button>
+  <pre id="log" style="display:none"></pre>
+  <div id="done"></div>
+
+  <h2>History</h2>
+  <table>
+    <tr><th>#</th><th>Target</th><th>Mode</th><th>Status</th><th>Findings</th><th></th></tr>
+    {% for s in scans %}
+    <tr>
+      <td>{{ s.id }}</td><td>{{ s.target }}</td><td>{{ s.mode }}</td><td>{{ s.status }}</td>
+      <td>{{ s.finding_count }}</td><td><a href="/report/{{ s.id }}">report</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6">No scans yet.</td></tr>
+    {% endfor %}
+  </table>
+
+  <script>
+    let checked = false;
+
+    function validateUrl() {
+      const v = document.getElementById("url").value.trim();
+      const msg = document.getElementById("urlMsg");
+      msg.textContent = "";
+      if (!v) { msg.textContent = "Enter a URL."; return false; }
+      try {
+        const u = new URL(v.includes("://") ? v : "https://" + v);
+        if (!["http:", "https:"].includes(u.protocol)) throw new Error();
+        if (!u.hostname.includes(".") && u.hostname !== "localhost") throw new Error();
+      } catch (e) {
+        msg.textContent = "Enter a valid http(s) URL.";
+        return false;
+      }
+      return true;
+    }
+
+    async function post(path, body) {
+      const res = await fetch(path, {
+        method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)
+      });
+      return { ok: res.ok, data: await res.json() };
+    }
+
+    async function checkTarget() {
+      checked = false;
+      document.getElementById("scanBtn").disabled = true;
+      if (!validateUrl()) return;
+      const box = document.getElementById("checkResult");
+      const { ok, data } = await post("/api/check", { url: document.getElementById("url").value });
+      box.style.display = "block";
+      if (!ok) { box.innerHTML = "<b class='error'>" + data.error + "</b>"; return; }
+
+      if (data.verified) {
+        box.innerHTML = "<b>Verified.</b> " + (data.loopback ? "Local target, trusted automatically. " : "Ownership token found. ") +
+                        "A full scan (crawl + input tests) will run.";
+      } else {
+        box.innerHTML = "<b>Not verified.</b> Only a passive scan will run. To unlock the full scan, prove you own " +
+          data.host + " by doing <u>one</u> of these, then click Check target again:<ul>" +
+          "<li>Serve a text file at <code>" + data.verify_path + "</code> containing: <code>" + data.token + "</code></li>" +
+          "<li>Or add to your home page: <code>&lt;meta name=\"vscan-verification\" content=\"" + data.token + "\"&gt;</code></li></ul>";
+      }
+      checked = true;
+      document.getElementById("scanBtn").disabled = false;
+    }
+
+    async function startScan() {
+      if (!checked) return;
+      document.getElementById("scanBtn").disabled = true;
+      const { ok, data } = await post("/api/scan", { url: document.getElementById("url").value });
+      if (!ok) { document.getElementById("urlMsg").textContent = data.error; return; }
+      poll(data.id);
+    }
+
+    async function poll(id) {
+      const log = document.getElementById("log");
+      log.style.display = "block";
+      const res = await fetch("/api/scan/" + id);
+      const s = await res.json();
+      log.textContent = s.log;
+      if (s.status === "done" || s.status === "error") {
+        document.getElementById("done").innerHTML =
+          "Scan " + s.status + ": " + s.finding_count + " findings. <a href='/report/" + id + "'>View report</a>";
+        document.getElementById("scanBtn").disabled = false;
+      } else {
+        setTimeout(() => poll(id), 1500);
+      }
+    }
+  </script>
+</body>
+</html>
